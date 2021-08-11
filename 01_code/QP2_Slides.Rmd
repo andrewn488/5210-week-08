@@ -1,0 +1,234 @@
+---
+title: "Executive Summary of GM Findings"
+author: Andrew Nalundasan
+date: August 12, 2021
+output: slidy_presentation
+---
+
+```{r echo = FALSE}
+# Course: OMSBA 5210
+# Purpose: Quick Project # 2 - Slides
+# Date: August 12, 2021
+# Author: Andrew Nalundasan
+```
+
+```{r echo = FALSE}
+# Clear environment of variables and functions
+rm(list = ls(all = TRUE)) 
+
+# NOTE, DO NOT CLEAR PACKAGES, IF YOU DO IT WILL NOT RUN
+```
+
+
+```{r message=FALSE, include=FALSE}
+
+library(ggannotate)    # annotation tool
+library(scales)        # to get $ and , on axis in graph
+library(tidyverse)     # contains ggplot2, dplyr, and several other packages
+library(vtable)        # NHK special
+library(gghighlight)   # visual formatting - highlights
+library(ggiraph)       # ggiraph
+```
+
+
+```{r include=FALSE}
+# load and tidy data
+# read data into environment and assign to variable
+cereal_product <- read_csv("../02_raw_data/mtp_product_data.csv")
+cereal_sales <- read_csv("../02_raw_data/mtp_sales_data.csv")
+
+# create new column for 'company' for each cereal company
+cereal_product <- cereal_product %>% 
+  mutate(company = case_when(
+    str_starts(brand, 'GENERAL') ~ 'General Mills', 
+    str_starts(brand, 'KELLOGGS') ~ 'Kelloggs', 
+    str_starts(brand, 'POST') ~ 'Post'))
+
+# remove cereal company name from 'brand' column
+cereal_product <- cereal_product %>% 
+  mutate(brand = str_replace_all(brand, "GENERAL MILLS", "")) %>% 
+  mutate(brand = str_replace_all(brand, "KELLOGGS", "")) %>% 
+  mutate(brand = str_replace_all(brand, "POST", "")) %>% 
+  mutate(flavor = stringr::str_to_title(flavor)) %>% 
+  mutate(brand = str_to_title(brand)) %>% 
+  mutate(brand = str_replace_all(brand, "Cinnamon Tst Cr", "Cinnamon Toast Crunch"))
+
+# update UPC formatting  
+cereal_product <- cereal_product %>%
+  mutate(UPC = str_sub(UPC, 4, -1))
+
+# update UPC formatting
+cereal_product <- cereal_product %>% 
+  mutate(UPC = str_replace_all(UPC, "-", "."))
+
+# join cereal_product and cereal_sales together
+cereal_ps <- left_join(cereal_product, cereal_sales, by = "UPC")
+
+# data for graphs
+cb_palette <- c("#999999", "#66CCCC", "#6600FF")
+
+cereal_numeric <- cereal_ps %>% 
+  mutate(company1 = case_when(
+    str_starts(company, 'General') ~ "GM", 
+    str_starts(company, 'Kelloggs') ~ "Kelloggs", 
+    str_starts(company, 'Post') ~ "Post"))
+```
+
+Agenda
+===============================================
+
+1. Introduction
+
+2. Finding 1
+
+3. Finding 2
+
+4. Key Takeaways
+
+```{r eval=FALSE, include=FALSE}
+# Hello everyone. Thank you for this opportunity to present to you the findings from my recent analysis for General Mills and our competitors. In this video, I will give a brief overview of the dataset and the analyses performed, I will speak about the findings and recommendations that came out of the analyses, and I'll wrap it up with our key takeaways. 
+```
+
+
+
+Introduction
+===============================================
+
++ talk about the data here
+
++ talk about the analyses completed
+
++ pull stuff from memo
+
+
+
+General Mills annual sales trending downward
+===============================================
+
+<div style="float: left; width: 35%;">
+
++ Market research shows that Kellogg's is our main competitor
+
++ Kellogg's currently the only cereal company with positive sales trends
+
++ What can General Mills do to stay competitive?
+
+</div>
+
+<div style="float: left; width: 65%;">
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# touch up scatter plot and save for memo
+
+cb_palette <- c("#6600FF", "#66CCCC", "#999999")
+
+company_sales_scatter <- cereal_ps %>% 
+  group_by(week, company) %>% 
+  summarise(count_n = n()) %>% 
+  mutate(toolt = paste0('Company: ', company, 
+                        '\nCount: ', count_n)) %>%
+  ggplot(mapping = aes(x = week, y = count_n, color = company)) +
+  scale_color_manual(values = cb_palette) +
+  geom_point_interactive(aes(tooltip = toolt), alpha = 0.5) + 
+  labs(x = "Week of the Year",
+       y = "Number of Sales",
+       title = "Annual sales trends for all cereal companies",
+       subtitle = "Strategic ad campaigns could help influence positive sales trends") + 
+  guides(color = "none", labels = "none") + 
+  theme_classic() +
+  theme(axis.ticks.x = element_blank()) + 
+  theme(axis.ticks.y = element_blank()) +
+  geom_smooth(method = "lm", se = FALSE) + 
+  
+  geom_text(data = data.frame(x = 48.5822707072111, y = 69.4390740593849, label = "Post"),
+            mapping = aes(x = x, y = y, label = label),
+            hjust = 0L, colour = "#999999", fontface = 2, inherit.aes = FALSE) + 
+  
+  geom_text(data = data.frame(x = c(47.7472046672058, 46.1814558421958 ),
+                              y = c(282.469108673468, 167.977195797176),
+                              label = c("Kellogg's", "General Mills")),
+            mapping = aes(x = x, y = y, label = label),
+            hjust = 0.2, colour = c("#66CCCC", "#6600FF"), fontface = 2, inherit.aes = FALSE)
+
+# view the viz
+ggiraph(ggobj = company_sales_scatter)
+
+# make annotations
+# ggannotate(company_sales_scatter)
+
+# save the viz
+ggsave(filename = "company_sales_scatter.png", plot = company_sales_scatter)
+```
+
+
+</div>
+
+Update to advertisement strategies will boost number of sales
+===============================================
+
+<div style="float: left; width: 35%;">
+
++ Small ad campaigns are more effective than medium ad campaigns
+
++ Allocate advertisement budget to small ad campaigns to cut costs from medium ad campaigns
+
++ this shows the effect that ads have on sales
+
+</div>
+
+<div style="float: left; width: 65%;">
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+cb_palette <- c("#6600FF", "#66CCCC")
+
+weekly_ad_sales_smooth <- cereal_numeric %>% 
+  mutate(ad = as.factor(ad)) %>% 
+  filter(company == 'General Mills') %>% 
+  filter(ad != "NONE") %>% 
+  group_by(week, ad) %>% 
+  summarise(count_n = n()) %>% 
+  ggplot(mapping = aes(x = week, y = count_n, color = ad, legend = "none")) +
+  scale_color_manual(values = cb_palette) + 
+  geom_smooth_interactive(se = FALSE) +
+  guides(color = "none", labels = "none") +  
+  theme_classic() + 
+  labs(x = "Week of the Year", 
+       y = "Number of Sales", 
+       title = "General Mills annual trends of advertisement campaigns",
+       subtitle = "Small ads outperform medium ads all year long") + 
+  
+  geom_text(data = data.frame(x = 39.0202225326685, y = 4.6481581052289, label = "Medium ads"),
+            mapping = aes(x = x, y = y, label = label),
+            hjust = -0.35, vjust = 1L, colour = "#66CCCC",  fontface = 2, inherit.aes = FALSE) + 
+  
+  geom_text(data = data.frame(x = 43.1127335651892, y = 10.6604358222577, label = "Small ads"),
+            mapping = aes(x = x, y = y, label = label),
+            hjust = 0.25,colour = "#6600FF", fontface = 2, inherit.aes = FALSE) +
+
+  geom_rect(data = data.frame(xmin = 35.107224456232, xmax = 40.979094351119, ymin = 3.1227927337657, 
+                              ymax = 11.062435478814),
+            mapping = aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            size = 0L, fill = "orange", alpha = 0.2, inherit.aes = FALSE)
+
+
+#ggannotate(weekly_ad_sales_smooth)
+
+# view the viz
+ggiraph(ggobj = weekly_ad_sales_smooth)
+```
+
+
+</div>
+
+
+Key Takeaways
+===============================================
+
++ Update advertisement strategies to focus on small campaigns over medium campaigns
+
++ Costs saved from medium campaigns can be focused elsewhere within the company
+
++ Verify increase in sales due to updated strategies
+
++ Drive GM sales trends to be positive, then focus energy on competition within the market

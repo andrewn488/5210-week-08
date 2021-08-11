@@ -1,0 +1,222 @@
+---
+title: "Impact of Promotions and Advertisements at General Mills "
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    social: menu
+    source_code: embed
+    theme: united
+runtime: shiny
+---
+
+```{r echo = FALSE}
+# Course: OMSBA 5210
+# Purpose: Quick Project # 2
+# Date: August 12, 2021
+# Author: Andrew Nalundasan
+```
+
+```{r echo = FALSE}
+# Clear environment of variables and functions
+rm(list = ls(all = TRUE)) 
+
+# NOTE, DO NOT CLEAR PACKAGES, IF YOU DO IT WILL NOT RUN
+```
+
+
+```{r}
+# Load Libraries
+# The tidyverse package contains ggplot2, dplyr, and several other packages
+library(tidyverse)
+
+# vtable for reppin NHK
+library(vtable)
+
+# to get $ and , on axis in graph
+library(scales)
+
+# shiny package
+library(shiny)
+
+# dygraph
+library(dygraphs)
+library(xts)
+
+# ggiraph
+library(ggiraph)
+
+```
+
+
+```{r global, include=FALSE}
+# Load and tidy the data
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+
+cereal_product <- read_csv("../02_raw_data/mtp_product_data.csv")
+cereal_sales <- read_csv("../02_raw_data/mtp_sales_data.csv")
+
+# create new column for 'company' for each cereal company
+cereal_product <- cereal_product %>% 
+  mutate(company = case_when(
+    str_starts(brand, 'GENERAL') ~ 'General Mills', 
+    str_starts(brand, 'KELLOGGS') ~ 'Kelloggs', 
+    str_starts(brand, 'POST') ~ 'Post'))
+
+# remove cereal company name from 'brand' column
+cereal_product <- cereal_product %>% 
+  mutate(brand = str_replace_all(brand, "GENERAL MILLS", "")) %>% 
+  mutate(brand = str_replace_all(brand, "KELLOGGS", "")) %>% 
+  mutate(brand = str_replace_all(brand, "POST", "")) %>% 
+  mutate(flavor = stringr::str_to_title(flavor)) %>% 
+  mutate(brand = str_to_title(brand)) %>% 
+  mutate(brand = str_replace_all(brand, "Cinnamon Tst Cr", "Cinnamon Toast Crunch"))
+
+# update UPC formatting  
+cereal_product <- cereal_product %>%
+  mutate(UPC = str_sub(UPC, 4, -1))
+
+# update UPC formatting
+cereal_product <- cereal_product %>% 
+  mutate(UPC = str_replace_all(UPC, "-", "."))
+
+# join cereal_product and cereal_sales together
+cereal_ps <- left_join(cereal_product, cereal_sales, by = "UPC")
+
+# Reduce the data set to analysis variables
+cereal_ps <- cereal_ps %>% 
+  mutate(Brand = as.factor(brand)) %>% 
+  mutate(Flavor = as.factor(flavor)) %>% 
+  mutate(Package = as.factor(package)) %>%
+  mutate(Company = as.factor(company)) %>%
+  mutate(Ad = as.factor(ad)) %>% 
+  rename(Volume = volume) %>% 
+  rename(Week = week) %>% 
+  rename(Units = units) %>% 
+  rename(Price = price) %>% 
+  rename(Promotion = promo) 
+
+cereal_ps <- cereal_ps %>% 
+  select(c("Ad", "Brand", "Company", "Flavor",  "Package", "Price", "Promotion", "Units", "Volume", "Week"))
+
+# Identify factor and numeric variables
+cereal_fact <- cereal_ps %>% 
+  select(c("Ad", "Brand", "Company", "Flavor", "Package"))
+
+cereal_num <- cereal_ps[, sapply(cereal_ps, is.numeric)] %>% 
+  mutate(None = n())
+
+``` 
+
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+  
+```{r}
+# Create user input
+sliderInput('price_range', 'Price Range', min = round(min(cereal_ps$Price), 0), max = round(max(cereal_ps$Price), 0), 
+            value = c(0, 10), step = 0.25, round = 5)
+  
+# Select x axis variable
+selectInput('x', 'X-Axis Variable', names(cereal_ps), names(cereal_ps)[[1]])
+  
+# Select y axis variable
+selectInput('y', 'Y-Axis Variable', names(cereal_num), names(cereal_num)[[3]])
+
+# Differentiate by color
+selectInput('color', 'Groupings', c('None', names(cereal_fact)), names(cereal_fact)[[3]])
+
+```
+
+
+```{r}
+# Create data that is updated/filtered by slider
+live_off <- reactive({
+    cereal_ps %>% 
+      filter(Price >= input$price_range[1],
+             Price <= input$price_range[2])
+   })
+
+```
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+  
+### Annual effect of promotions on sales
+
+```{r}
+# Scatter plot
+scatter2 <- cereal_ps %>% 
+  filter(Company == "General Mills") %>% 
+  mutate(Promotion = as.factor(Promotion)) %>% 
+  group_by(Week, Company, Promotion) %>% 
+  summarise(count_n = n()) %>% 
+  mutate(toolt = paste0('Company: ', Company, 
+                        '\nWeek: ', Week,
+                        '\nCount: ', count_n)) %>% 
+  ggplot(mapping = aes(x = Week, y = count_n, color = Promotion)) +
+  geom_point_interactive(aes(tooltip = toolt), alpha = 0.5) + 
+  theme(legend.title = element_blank(),
+        legend.position = "none") + 
+  labs(x = "Week",
+       y = "Number Sales", 
+       title = "Active promotions yield lower sales") +
+  geom_smooth(method = "lm", se = FALSE) + 
+  
+  geom_text(data = data.frame(x = 26.3187021263324, y = 33.3208164635735, label = "Active Promotion"),
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 0.15, vjust = 0.3, colour = "#00BFC4", fontface = 2, inherit.aes = FALSE) + 
+  
+  geom_text(data = data.frame(x = 31.9663334677809, y = 130.381568192379, label = "No Promotion"),
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 0.25, colour = "red", fontface = 2, inherit.aes = FALSE)
+
+#ggannotate(scatter2)
+
+ggiraph(ggobj = scatter2, height_svg = 3.5,
+        options = list(
+          opts_sizing(rescale = TRUE, width = 1)
+        ))
+```
+
+
+### Median Revenue Trends. Use sliders to adjust week
+
+```{r}
+mp_ts <- cereal_ps %>% 
+  filter(Company == "General Mills") %>% 
+  group_by(Week) %>% 
+  summarize(med_rev = median(Price * Units))  
+
+# line graph determined by user input
+dygraph(mp_ts, main = "General Mills annual performance") %>% 
+  dySeries("med_rev", label = "Median Revenue") %>% 
+  dyAxis("y", drawGrid = FALSE, label = "Median revenue (USD)") %>%
+  dyAxis("x", drawGrid = FALSE, label = "Week number") %>% 
+  dyRangeSelector(dateWindow = c("1", "52")) 
+
+```
+
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### Use inputs on left pane to update Bar Chart
+
+```{r}
+# Bar plot data determined by user input
+renderPlot({
+    p <- ggplot(live_off(), aes_string(x=input$x, y=input$y)) + 
+       geom_bar(stat = "summary", fun.y = "mean", position = "dodge", color = "black") +
+         ylab(paste("Mean of ", input$y))
+    
+    if (input$color != 'None')
+      p <- p + aes_string(fill=input$color)
+
+    p <- p + theme_bw()
+    
+    print(p)
+
+  })
+
+```

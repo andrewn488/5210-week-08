@@ -1,0 +1,343 @@
+---
+title: "Week-8-Notes"
+author: "Andrew Nalundasan"
+date: "8/13/2021"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview video
+
++ Forget about plotly
+
+    - Use ggiraph for interactive graphs
+        - example in week 7 overview video
+    - Use dygraph for line graphs
+    
++ Focus on Example 3 for Shiny Interactive Visual
+
+    - Use 'global chunk' approach
+
++ Start thinking about DTC
+
+# HTML Widgets
+
+```{r}
+# load libraries
+library(tidyverse)
+library(vtable)
+library(dygraphs)
+library(xts)
+library(gganimate)
+library(gapminder) # animation data
+```
+
+
+## What are they?
+
+```{r}
+# load data
+qp1 <- read_csv("../02_raw_data/qp1_data.csv")
+
+# convert variables
+qp1$zip_code <- as.factor(qp1$zip_code)
+
+vtable(qp1)
+
+attach(qp1)
+```
+
++ HTML widgets not as robust as ggplot2
+
+    - does not "remember" variable names in data set
+    
++ HTML can make things interactive
+
++ each package stores the data so can be run in java in the background
+
+## plotly (use ggiraph)
+
++ allows you to see the data behind your visual
+
+    - hover over points and see details on each data point
+    
++ widget contains the data
+
++ larger the data, slower the response
+
+    - not great with larger data sets unless have high computing power
+    - select something in data set to cut out unnecessary data
+    
++ use plotly menu and legend to zoom in and interact with graph for finer detail and filter out stuff
+
++ don't even really much think about doing 3-D bullshit
+
+## dygraph (use for time series)
+
++ allows you to zoom in on different times with sliders
+
++ time series by factor level is difficult
+
+    - must create factor time series 
+    
++ good tool for working with financial data
+
++ versatile but sometimes difficult to work with
+
+```{r dy1, message = FALSE, warning = FALSE}
+# Convert yr_built to Date, but this is different then above when we used year()
+qp1$yr_built <- as.Date(as.character(qp1$yr_built), format = "%Y")
+
+# Summarize data
+mp_ts <- qp1 %>% 
+  group_by(yr_built) %>% 
+  summarize(med_pr = median(price/1000))  
+
+# Create xts data
+mp_ts <- mp_ts %>% 
+  xts(order.by = mp_ts$yr_built) 
+
+# Graph median price over time
+dygraph(mp_ts$med_pr) %>% 
+  dyRangeSelector(dateWindow = c("1900-01-01", "2016-01-01"))
+```
+
+```{r dy2, message = FALSE, warning = FALSE}
+# some easy options
+
+# Graph median price over time
+dygraph(mp_ts$med_pr, main = "Sudden decreases in value are usually larger than increases") %>% 
+  dyRangeSelector(dateWindow = c("1900-01-01", "2016-01-01")) %>% 
+  dyAxis("y", label = "Median price in thousands") %>% 
+  dyShading(from = "1912-1-1", to = "1919-1-1", color = "#FFE6E6") %>%
+  dyShading(from = "1928-1-1", to = "1933-1-1", color = "#FFE6E6") %>%
+  dyShading(from = "1938-1-1", to = "1944-1-1", color = "#FFE6E6") %>%
+  dyShading(from = "1970-1-1", to = "1974-1-1", color = "#CCEBD6") %>% 
+  dyShading(from = "2010-1-1", to = "2016-1-1", color = "#CCEBD6")
+
+```
+
+```{r dy3, message = FALSE, warning = FALSE}
+# time series with all quartiles
+
+# Calculate quartiles
+pr_qtile <- do.call("rbind", tapply(qp1$price/1000, qp1$yr_built, quantile)) %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "time") %>% 
+  mutate(time = as.Date(time)) %>% 
+  rename(Min = `0%`, `2nd` = `25%`, Median = `50%`, `3rd` = `75%`, Max = `100%`)
+
+# switch to xts format
+pr_qtile_ts <- xts(x = pr_qtile[,-1], order.by = pr_qtile$time)
+
+# Plot it
+dygraph(pr_qtile_ts, main = "Max price vs quartiles shows how skewed house price data is") %>%
+  dyRangeSelector(dateWindow = c("1900-01-01", "2016-01-01")) %>% 
+  dyAxis("y", label = "Median price in thousands") %>% 
+  dyOptions(fillGraph = TRUE)
+
+```
+
+```{r dy4, message = FALSE, warning = FALSE}
+# time series with quartile band
+
+# Remove min and max
+pr_3tile <- pr_qtile %>% select(-c("Min", "Max"))
+
+# switch to xts format
+pr_3tile_ts <- pr_3tile[,-1] %>% 
+  xts(order.by = pr_3tile$time)
+
+# Plot
+dygraph(pr_3tile_ts, main = "") %>%
+  dySeries(c("2nd", "Median", "3rd")) %>% 
+  dyAxis("y", label = "Median price in thousands") %>% 
+  dyRangeSelector(dateWindow = c("1900-01-01", "2016-01-01")) 
+
+```
+
+```{r dy5, message = FALSE, warning = FALSE}
+# cannot easily divide by factors
+
+# Summarize data
+ml_ts <- qp1 %>% 
+  group_by(yr_built) %>% 
+  summarize(med_liv = median(sqft_living), 
+            med_lot = median(sqft_lot))  
+
+# Create xts data
+ml_ts <- ml_ts %>% 
+  xts(order.by = ml_ts$yr_built) 
+
+# Create factor time series
+ml_ts <- cbind(ml_ts$med_liv, 
+               ml_ts$med_lot)
+
+# Graph price by waterfront over time
+dygraph(ml_ts, main = "Median lot size dropped dramatically in the 1990s") %>%
+  dyAxis("x", drawGrid = FALSE) %>%
+  dyAxis("y", label = "Square feet") %>% 
+  dyRangeSelector(dateWindow = c("1900-01-01", "2016-01-01")) %>% 
+  dyOptions(fillGraph = TRUE)
+
+```
+
+# Animations
+
++ help to tell the story
+
++ spice up some visuals
+
++ can be distracting if not used tastefully
+
++ not interactive
+
+## Hans Rosling
+
++ cool video of data visualization and animation about 200 countries developing over 200 years to go from "Poor and dying" to "Rich and healthy"
+
++ professor Green saw this video in 2010 and decided to jump into data viz as his next focus of academia
+
+## gganimate
+
++ animated visuals help deliver a story
+
++ works well to show motion
+
++ only use animations if it adds substance. don't add just for sizzle or bacon
+
++ use for substance, not sizzle!
+
+### transition_time()
+
+```{r ann1, message = FALSE, warning = FALSE, fig.height = 4, fig.width = 5}
+# Build a faceted animation graph
+ggplot(data = gapminder, 
+       mapping = aes(x = gdpPercap/1000, y = lifeExp, 
+                     size = pop, color = country)) +
+  geom_point(alpha = 0.7, show.legend = FALSE) +
+  scale_colour_manual(values = country_colors) +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  facet_wrap(~continent) +
+  theme_bw() +
+
+  # Here comes the gganimate specific bits
+  labs(title = "Real GDP and life expectancy grow together: Year {frame_time}",
+       x = "GDP per capita ($000)", y = "Life expectancy") +
+  transition_time(year) +
+  ease_aes("linear")
+
+```
+
+### transition_reveal()
+
+```{r ann2, message = FALSE, warning = FALSE}
+# Graph median price by year built
+p <- qp1 %>% 
+  select(yr_built, waterfront, price) %>% 
+  group_by(yr_built, waterfront) %>% 
+  summarize(med_price = median(price/1000)) %>% 
+  ggplot(aes(x = yr_built, y = med_price, frame = yr_built)) + 
+    geom_line(aes(color = as.factor(waterfront))) + 
+    scale_color_manual(name = "Waterfront", labels = c("No", "Yes"), values = c("navy", "blue"),
+                       guide = guide_legend(reverse=TRUE)) +
+    theme_classic() +
+    theme(axis.title.x = element_blank(),
+          legend.position="bottom") +
+  labs(title = "Waterfront median price is much more variable than non-waterfront",
+       x = "", y = "Median price ($000)") +  
+  transition_reveal(yr_built) 
+
+# Run as a GIF animation and control speed
+animate(p, nframes = 300)
+
+```
+
+
+### transition_state()
+
+```{r ann3, message = FALSE, warning = FALSE, fig.height = 4, fig.width = 5}
+# Animate a bar graph
+qp1 %>% 
+  select(price, bedrooms, waterfront) %>% 
+  group_by(bedrooms, waterfront) %>%
+  filter(bedrooms < 7 & bedrooms > 0) %>% 
+  summarise(med_price = median(price/1000)) %>% 
+  ggplot(aes(x = bedrooms, y = med_price, fill = as.factor(waterfront))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_classic() +
+  scale_fill_manual(name = "Waterfront", labels = c("No", "Yes"), values = c("lightblue", "blue"),
+                    guide = guide_legend(reverse=TRUE)) +
+  labs(title = "Median price grows more per bedroom for waterfront homes",
+       x = "Number of bedrooms", y = "Median price ($000)") +
+  transition_states(bedrooms, wrap = FALSE) +
+  shadow_mark()
+
+```
+
+
+# shiny
+
++ interactive visual page that can be printed
+
++ user is changing variables for the perspectives on the data
+
++ HTML widgets only allow for viewing static data on the page
+
+    - doesn't allow you to change the variables or change the data
+    - only zooms in and out
+    - only impacts "hover height" of the data
+    
++ best practices
+
+    1. keep it clear
+        - keep it simple
+        - choose visuals carefully
+            - bar graphs: categoricla data
+            - line graphs: time series and variables that show motion
+            - scatter plot: show relationships between variables
+            - maps: show spatial relationships
+        
+    2. make it approachable
+        - arrange interactions with simplicity in mind
+        - make the audience the focus, rather than the analysis
+        - focus on what the audience needs to know, not the analytics
+        - focus on the finding, not the method
+        
+## shiny interactive visuals
+
+1. example 1: 
+
+    - Each dashboard element is driven by 1 menu
+    - shareable on social media
+    - embed code into dashboard in the background
+    - informational dashboard. only allows changes to 3 key variables independently, but not together
+        - does not allow for as deep of a dive
+    - master chunk will allow user to dive deeper
+    
+2. example 2: 
+
+    - statistical analysis of sampling distributions of Central Limit Theorem 
+    - shiny structure: 
+    - 3 elements of shiny dashboards:
+        1. inputPanel() - create space on page and gather user input
+        2. reactive[()] - filter data with user input
+        3. renderPlot({}) - plot data determined by user input
+    - using stuff to dive deeper into the data
+        
+    
+3. example 3: 
+
+    - master chunk drives updates to all elements
+    
+    
+
