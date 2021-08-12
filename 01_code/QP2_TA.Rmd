@@ -6,7 +6,9 @@ output:
     orientation: rows
     social: menu
     source_code: embed
-    theme: united
+    theme:
+      version: 4
+      bootswatch: minty
 runtime: shiny
 ---
 
@@ -89,6 +91,9 @@ cereal_ps <- cereal_ps %>%
   mutate(Flavor = as.factor(flavor)) %>% 
   mutate(Package = as.factor(package)) %>%
   mutate(Company = as.factor(company)) %>%
+  mutate(ad = str_replace_all(ad, "A", "Small Ad")) %>% 
+  mutate(ad = str_replace_all(ad, "B", "Medium Ad")) %>% 
+  mutate(ad = str_replace_all(ad, "NONE", "No Ads")) %>% 
   mutate(Ad = as.factor(ad)) %>% 
   rename(Volume = volume) %>% 
   rename(Week = week) %>% 
@@ -153,7 +158,7 @@ scatter2 <- cereal_ps %>%
   summarise(count_n = n()) %>% 
   mutate(toolt = paste0('Company: ', Company, 
                         '\nWeek: ', Week,
-                        '\nCount: ', count_n)) %>% 
+                        '\nNumber of Sales: ', count_n)) %>% 
   ggplot(mapping = aes(x = Week, y = count_n, color = Promotion)) +
   geom_point_interactive(aes(tooltip = toolt), alpha = 0.5) + 
   theme(legend.title = element_blank(),
@@ -180,7 +185,7 @@ ggiraph(ggobj = scatter2, height_svg = 3.5,
 ```
 
 
-### Median Revenue Trends. Use sliders to adjust week
+### Use the sliders to adjust "Week Number" and analyze median revenue trends for General Mills
 
 ```{r}
 mp_ts <- cereal_ps %>% 
@@ -192,7 +197,7 @@ mp_ts <- cereal_ps %>%
 dygraph(mp_ts, main = "General Mills annual performance") %>% 
   dySeries("med_rev", label = "Median Revenue") %>% 
   dyAxis("y", drawGrid = FALSE, label = "Median revenue (USD)") %>%
-  dyAxis("x", drawGrid = FALSE, label = "Week number") %>% 
+  dyAxis("x", drawGrid = FALSE, label = "Week Number") %>% 
   dyRangeSelector(dateWindow = c("1", "52")) 
 
 ```
