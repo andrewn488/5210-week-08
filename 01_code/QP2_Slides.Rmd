@@ -1,5 +1,5 @@
 ---
-title: "Executive Summary of GM Findings"
+title: "Advertisement campaigns can help boost sales at General Mills"
 author: Andrew Nalundasan
 date: August 12, 2021
 output: slidy_presentation
@@ -74,44 +74,42 @@ cereal_numeric <- cereal_ps %>%
     str_starts(company, 'Post') ~ "Post"))
 ```
 
-Agenda
-===============================================
-
-1. Introduction
-
-2. Finding 1
-
-3. Finding 2
-
-4. Key Takeaways
-
 ```{r eval=FALSE, include=FALSE}
-# Hello everyone. Thank you for this opportunity to present to you the findings from my recent analysis for General Mills and our competitors. In this video, I will give a brief overview of the dataset and the analyses performed, I will speak about the findings and recommendations that came out of the analyses, and I'll wrap it up with our key takeaways. 
-```
 
+# Full screen intro of MY FACE
+
+# Hello everyone. Thank you for this opportunity to present to you today. My name is Andrew Nalundasan, and I will be covering the findings from my recent analysis regarding the effectiveness of in-store promotions and advertisement campaigns for General Mills and our competitors. In this video, I will give a brief overview of the data set and the analyses performed, I will speak about the findings and recommendations that came out of the analyses, and I'll wrap it up with our key takeaways. 
+
+# Start sharing screen and begin presentation
+```
 
 
 Introduction
 ===============================================
 
-+ talk about the data here
++ The Data:
 
-+ talk about the analyses completed
+    + Weekly sales from several stores 
+    + 21,000 + observations
+    + Data has been anonymized - no privacy concerns for our customers
 
-+ pull stuff from memo
++ Insights into cereal market and our main competitors
 
-
+    + General Mills sales numbers are currently trending downard
+        + Post also trending downard
+        + Kellogg's trending upward
+        
 
 General Mills annual sales trending downward
 ===============================================
 
 <div style="float: left; width: 35%;">
 
-+ Market research shows that Kellogg's is our main competitor
++ Kellogg's is at the top of the cereal market
 
-+ Kellogg's currently the only cereal company with positive sales trends
++ Post is struggling to keep up, but they are still competing
 
-+ What can General Mills do to stay competitive?
++ General Mills must explore strategies to enhance market competition
 
 </div>
 
@@ -125,8 +123,9 @@ cb_palette <- c("#6600FF", "#66CCCC", "#999999")
 company_sales_scatter <- cereal_ps %>% 
   group_by(week, company) %>% 
   summarise(count_n = n()) %>% 
-  mutate(toolt = paste0('Company: ', company, 
-                        '\nCount: ', count_n)) %>%
+  mutate(toolt = paste0('Company: ', company,
+                        '\nWeek: ', week, 
+                        '\nNumber of Sales: ', count_n)) %>%
   ggplot(mapping = aes(x = week, y = count_n, color = company)) +
   scale_color_manual(values = cb_palette) +
   geom_point_interactive(aes(tooltip = toolt), alpha = 0.5) + 
@@ -163,16 +162,19 @@ ggsave(filename = "company_sales_scatter.png", plot = company_sales_scatter)
 
 </div>
 
-Update to advertisement strategies will boost number of sales
+Update advertisement strategies to boost number of sales
 ===============================================
 
 <div style="float: left; width: 35%;">
 
 + Small ad campaigns are more effective than medium ad campaigns
 
-+ Allocate advertisement budget to small ad campaigns to cut costs from medium ad campaigns
+    + At corresponding low and high points, there is a significant difference between number of sales between ad campaigns
+    
 
-+ this shows the effect that ads have on sales
++ Allocate advertisement budget from medium ad campaigns to small ad campaigns to cut costs 
+
++ Strategic ad campaigns will help boost sales for General Mills
 
 </div>
 
@@ -200,14 +202,20 @@ weekly_ad_sales_smooth <- cereal_numeric %>%
   
   geom_text(data = data.frame(x = 39.0202225326685, y = 4.6481581052289, label = "Medium ads"),
             mapping = aes(x = x, y = y, label = label),
-            hjust = -0.35, vjust = 1L, colour = "#66CCCC",  fontface = 2, inherit.aes = FALSE) + 
+            hjust = -0.25, vjust = 1L, colour = "#66CCCC",  fontface = 2, inherit.aes = FALSE) + 
   
   geom_text(data = data.frame(x = 43.1127335651892, y = 10.6604358222577, label = "Small ads"),
             mapping = aes(x = x, y = y, label = label),
             hjust = 0.25,colour = "#6600FF", fontface = 2, inherit.aes = FALSE) +
 
-  geom_rect(data = data.frame(xmin = 35.107224456232, xmax = 40.979094351119, ymin = 3.1227927337657, 
+  geom_rect(data = data.frame(xmin = 35.107224456232, xmax = 40.979094351119,
+                              ymin = 3.1227927337657, 
                               ymax = 11.062435478814),
+            mapping = aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+            size = 0L, fill = "orange", alpha = 0.2, inherit.aes = FALSE) + 
+  
+    geom_rect(data = data.frame(xmin = 10, xmax = 17, ymin = 3.1227927337657,
+                                ymax = 11.062435478814),
             mapping = aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
             size = 0L, fill = "orange", alpha = 0.2, inherit.aes = FALSE)
 
@@ -227,8 +235,13 @@ Key Takeaways
 
 + Update advertisement strategies to focus on small campaigns over medium campaigns
 
-+ Costs saved from medium campaigns can be focused elsewhere within the company
++ Costs saved from medium campaigns can be allocated to small ad campaigns and elsewhere within the company
 
-+ Verify increase in sales due to updated strategies
++ Future study to verify small ad campaigns drive increased sales
 
 + Drive GM sales trends to be positive, then focus energy on competition within the market
+
++ Dashboard with further information provided to Quian 
+
+Thank You
+===============================================

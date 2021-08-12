@@ -147,7 +147,7 @@ live_off <- reactive({
 Row {data-height=400}
 -----------------------------------------------------------------------
   
-### Annual effect of promotions on sales
+### Hover over dots to view details on the annual effect of promotions on sales. 
 
 ```{r}
 # Scatter plot
@@ -185,7 +185,7 @@ ggiraph(ggobj = scatter2, height_svg = 3.5,
 ```
 
 
-### Use the sliders to adjust "Week Number" and analyze median revenue trends for General Mills
+### Use the sliders to adjust "Week Number" and to analyze median revenue trends for General Mills
 
 ```{r}
 mp_ts <- cereal_ps %>% 
